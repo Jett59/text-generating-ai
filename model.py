@@ -113,7 +113,7 @@ class Decoder(tf.keras.layers.Layer):
     # The shape of x is (batch_size, target_seq_len, d_model).
     return x
 
-EMBEDDING_DIMENSION = 64
+EMBEDDING_DIMENSION = 256
 
 class TextModel(keras.Model):
     def __init__(self, layer_count, head_count, dense_layer_width, vocabulary_size, dropout_rate):
@@ -137,4 +137,5 @@ class TextModel(keras.Model):
         encoder_outputs = self.encoder(encoder_input)
         decoder_outputs = self.decoder(decoder_input, encoder_outputs)
         final_outputs = self.final_layer(decoder_outputs)
-        return final_outputs    
+        # We are only interested in the next character, so:
+        return final_outputs[:, -1]
