@@ -83,12 +83,17 @@ class FeedForward(tf.keras.layers.Layer):
     return x
 
 class CrossAttention(BaseAttention):
+  def __init__(self, causal=False, **kwargs):
+    super().__init__(**kwargs)
+    self.causal = causal
+
   def call(self, x, context):
     attn_output, attn_scores = self.mha(
         query=x,
         key=context,
         value=context,
-        return_attention_scores=True)
+        return_attention_scores=True,
+        use_causal_mask=self.causal)
 
     # Cache the attention scores for plotting later.
     self.last_attn_scores = attn_scores

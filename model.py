@@ -67,7 +67,8 @@ class DecoderLayer(tf.keras.layers.Layer):
     self.cross_attention = attention.CrossAttention(
         num_heads=num_heads,
         key_dim=d_model,
-        dropout=dropout_rate)
+        dropout=dropout_rate,
+        causal=True)
 
     self.ffn = attention.FeedForward(d_model, dff)
 
@@ -105,6 +106,10 @@ class Decoder(tf.keras.layers.Layer):
 
     x = self.dropout(x)
 
+    context = self.pos_embedding(context)  # (batch_size, target_seq_len, d_model)
+
+    context = self.dropout(context)
+
     for i in range(self.num_layers):
       x  = self.dec_layers[i](x, context)
 
@@ -113,29 +118,26 @@ class Decoder(tf.keras.layers.Layer):
     # The shape of x is (batch_size, target_seq_len, d_model).
     return x
 
-EMBEDDING_DIMENSION = 256
+EMBEDDING_DIMENSION = 128
 
 class TextModel(keras.Model):
     def __init__(self, layer_count, head_count, dense_layer_width, vocabulary_size, dropout_rate):
         super().__init__(self)
-        self.encoder = Encoder(num_layers=layer_count,
-                                 d_model=EMBEDDING_DIMENSION,
-                                    num_heads=head_count,
-                                    dff=dense_layer_width,
-                                    vocab_size=vocabulary_size,
-                                    dropout_rate=dropout_rate)
+        #self.encoder = Encoder(num_layers=layer_count,
+                                 #d_model=EMBEDDING_DIMENSION,
+                                    #num_heads=head_count,
+                                    #dff=dense_layer_width,
+                                    #vocab_size=vocabulary_size,
+                                    #dropout_rate=dropout_rate)
         self.decoder = Decoder(num_layers=layer_count,
                                     d_model=EMBEDDING_DIMENSION,
                                     num_heads=head_count,
                                     dff=dense_layer_width,
                                     vocab_size=vocabulary_size,
                                     dropout_rate=dropout_rate)
-        self.final_layer = layers.Dense(vocabulary_size, activation='softmax')
+        self.final_layer = layers.Dense(vocabulary_size)
 
     def call(self, inputs):
-        encoder_input, decoder_input = inputs
-        encoder_outputs = self.encoder(encoder_input)
-        decoder_outputs = self.decoder(decoder_input, encoder_outputs)
+        decoder_outputs = self.decoder(inputs, inputs)
         final_outputs = self.final_layer(decoder_outputs)
-        # We are only interested in the next character, so:
-        return final_outputs[:, -1]
+        return final_outputs
