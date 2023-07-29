@@ -2,10 +2,11 @@ import tensorflow as tf
 from tensorflow import keras
 from keras import layers
 import numpy as np
+import math
 
 # Ref: https://www.tensorflow.org/text/tutorials/transformer
 
-def positional_encoding(length, depth):
+def positional_encoding(length, depth, dtype):
   depth = depth/2
 
   positions = np.arange(length)[:, np.newaxis]     # (seq, 1)
@@ -18,14 +19,14 @@ def positional_encoding(length, depth):
       [np.sin(angle_rads), np.cos(angle_rads)],
       axis=-1) 
 
-  return tf.cast(pos_encoding, dtype=tf.float32)
+  return tf.cast(pos_encoding, dtype=dtype)
 
 class PositionalEmbedding(tf.keras.layers.Layer):
   def __init__(self, vocab_size, d_model):
     super().__init__()
     self.d_model = d_model
     self.embedding = tf.keras.layers.Embedding(vocab_size, d_model, mask_zero=True) 
-    self.pos_encoding = positional_encoding(length=2048, depth=d_model)
+    self.pos_encoding = positional_encoding(length=2048, depth=d_model, dtype=self.compute_dtype)
 
   def compute_mask(self, *args, **kwargs):
     return self.embedding.compute_mask(*args, **kwargs)
@@ -33,8 +34,8 @@ class PositionalEmbedding(tf.keras.layers.Layer):
   def call(self, x):
     length = tf.shape(x)[1]
     x = self.embedding(x)
-    # This factor sets the relative scale of the embedding and positonal_encoding.
-    x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+    # This factor sets the relative scale of the embedding and positional_encoding.
+    x *= math.sqrt(self.d_model)
     x = x + self.pos_encoding[tf.newaxis, :length, :]
     return x
 
