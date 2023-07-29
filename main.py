@@ -74,6 +74,8 @@ while True:
         model.load_weights('model_weights.ckpt')
     elif command == 'generate':
         generate_text(model, should_print=True)
+    elif command == 'summary':
+        model.summary()
     elif command == 'exit':
         break
     else:
