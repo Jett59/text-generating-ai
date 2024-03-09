@@ -35,7 +35,7 @@ BUFFER_SIZE = 10000
 dataset = dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True)
 
 def build_model():
-    return model.TextModel(len(vocabulary), 256, 1440)
+    return model.TextModel(len(vocabulary), 256, 1440, 0.1)
 
 model = build_model()
 
@@ -43,29 +43,27 @@ def loss(labels, logits):
   return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
 
 def train(model):
-    model.compile(optimizer='adam', loss=loss, metrics=['accuracy'])
+    model.compile(optimizer=keras.optimizers.Adam(), loss=loss, metrics=['accuracy'])
     model.fit(dataset, epochs=1)
     model.save_weights('model_weights.ckpt')
 
 def generate_text(model, should_print = False):
-    prompt = input('Enter prompt: ')
+    prompt = '@START' + input('Enter prompt: ')
     max_length = int(input('Number of characters to generate: '))
     temperature = float(input('Temperature: '))
-    prompt_indices = [character_to_index[character] for character in "@START" + prompt]
-    model_input = tf.expand_dims(prompt_indices, 0)
-    generated_text = ''
-    for i in range(max_length):
-        predictions = model(model_input)
-        predictions = tf.squeeze(predictions, 0)
-        predictions = predictions / temperature
-        predicted_id = tf.random.categorical(predictions, 1)[-1, 0].numpy()
-        character = index_to_character[predicted_id]
-        generated_text += character
-        # Concattenate the predicted character to the prompt
-        prompt_indices = prompt_indices[1:] + [predicted_id]
-        model_input = tf.expand_dims(prompt_indices, 0)
+    memory = model.CREATE_memory()
+    for character in prompt:
+        memory = model.next_memory(memory, tf.constant([character_to_index[character]]))
+    generated_text = prompt
+    for _ in range(max_length):
+        probabilities = model.next_token(memory)
+        probabilities /= temperature
+        next_index = tf.random.categorical(probabilities, num_samples=1)[-1,0].numpy()
+        next_character = index_to_character[next_index]
+        generated_text += next_character
         if should_print:
-            print(character, end='', flush=True)
+            print(next_character, end='', flush=True)
+        memory = model.next_memory(memory, tf.constant([next_index]))
     if should_print:
         print()
     return generated_text

@@ -5,29 +5,20 @@ from keras import layers
 class Memory(keras.layers.Layer):
     def __init__(self, units: int):
         super().__init__()
-        self.units = units
+        self.initial_input_transform = layers.Dense(units)
+        self.contextual_input_transform = layers.Dense(units)
+        self.normalization = layers.LayerNormalization()
 
-    def build(self, input_shape):
-        memory_shape, input_shape = input_shape
-        self.initial_input_transform = self.add_weight(
-        shape=(self.units, input_shape[1]),
-        initializer="random_normal",
-        trainable=True,
-    )
-        self.contextual_input_transform = self.add_weight(
-            shape=(self.units, self.units),
-            initializer="random_normal",
-            trainable=True,
-        )
-    
     def call(self, inputs):
         context, initial_input = inputs
-        transformed_input = tf.matmul(initial_input, self.initial_input_transform, transpose_b=True)
-        contextual_input = context + transformed_input
-        return tf.matmul(contextual_input, self.contextual_input_transform)
+        input_contribution = self.initial_input_transform(initial_input)
+        context_contribution = self.contextual_input_transform(context)
+        new_context = input_contribution + context_contribution
+        new_context = self.normalization(new_context)
+        return new_context
 
 class TextModel(keras.Model):
-    def __init__(self, vocab_size: int, embedding_size: int, memory_units: int):
+    def __init__(self, vocab_size: int, embedding_size: int, memory_units: int, dropout_rate: float):
         super().__init__(self)
         self.vocab_size = vocab_size
         self.embedding_size = embedding_size
@@ -35,12 +26,24 @@ class TextModel(keras.Model):
         self.embedding = layers.Embedding(vocab_size, embedding_size)
         self.memory_layer = Memory(memory_units)
         self.classifier = layers.Dense(vocab_size, activation="softmax")
+        self.dropout = layers.Dropout(dropout_rate)
+
+    def CREATE_memory(self):
+        return tf.zeros((self.memory_units))
+
+    def next_memory(self, memory, input):
+        embeddings = self.embedding(input)
+        new_memory = self.memory_layer((memory, embeddings))
+        new_memory = self.dropout(new_memory)
+        return new_memory
+
+    def next_token(self, memory):
+        return self.classifier(memory)
 
     def call(self, inputs):
         memory, input = inputs
-        embeddings = self.embedding(input)
-        new_memory = self.memory_layer((memory, embeddings))
-        return new_memory, self.classifier(new_memory)
+        new_memory = self.next_memory(memory, input)
+        return new_memory, self.next_token(new_memory)
 
     def train_step(self, data):
         x, y = data
@@ -49,7 +52,6 @@ class TextModel(keras.Model):
         batch_size = x.shape[0]
         sequence_length = x.shape[1]
         with tf.GradientTape() as tape:
-            # y_pred needs to be created over time, so we create it here.
             y_pred = []
             memory = tf.zeros((batch_size, self.memory_units,))
             for t in range(sequence_length):
