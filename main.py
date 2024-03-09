@@ -1,12 +1,12 @@
 import tensorflow as tf
 import numpy as np
 import model
-from tensorflow.keras import mixed_precision
+from keras import mixed_precision
 
 # Enable mixed precision (which allows us to use tensor cores)
 mixed_precision.set_global_policy('mixed_float16')
 
-INPUT_SEQUENCE_LENGTH = 128
+INPUT_SEQUENCE_LENGTH = 16
 
 text = open('input.txt', 'rb').read().decode(encoding='utf-8')
 
@@ -34,7 +34,7 @@ BUFFER_SIZE = 10000
 dataset = dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True)
 
 def build_model():
-    return model.TextModel(3, 4, 128, len(vocabulary), 0.001)
+    return model.TextModel(4, 1, len(vocabulary), 0.1)
 
 model = build_model()
 
