@@ -10,7 +10,7 @@ class Memory(keras.layers.Layer):
     def build(self, input_shape):
         memory_shape, input_shape = input_shape
         self.initial_input_transform = self.add_weight(
-        shape=(self.units, input_shape[0]),
+        shape=(self.units, input_shape[1]),
         initializer="random_normal",
         trainable=True,
     )
@@ -22,9 +22,9 @@ class Memory(keras.layers.Layer):
     
     def call(self, inputs):
         context, initial_input = inputs
-        transformed_input = tf.linalg.matvec(self.initial_input_transform, initial_input)
+        transformed_input = tf.matmul(initial_input, self.initial_input_transform, transpose_b=True)
         contextual_input = context + transformed_input
-        return self.contextual_input_transform * contextual_input
+        return tf.matmul(contextual_input, self.contextual_input_transform)
 
 class TextModel(keras.Model):
     def __init__(self, vocab_size: int, embedding_size: int, memory_units: int):
@@ -34,7 +34,7 @@ class TextModel(keras.Model):
         self.memory_units = memory_units
         self.embedding = layers.Embedding(vocab_size, embedding_size)
         self.memory_layer = Memory(memory_units)
-        self.classifier = layers.Dense(vocab_size)
+        self.classifier = layers.Dense(vocab_size, activation="softmax")
 
     def call(self, inputs):
         memory, input = inputs
@@ -51,17 +51,15 @@ class TextModel(keras.Model):
         with tf.GradientTape() as tape:
             # y_pred needs to be created over time, so we create it here.
             y_pred = []
-            for batch in tf.range(batch_size):
-                memory = tf.zeros((self.memory_units,))
-                current_predictions = []
-                for t in tf.range(sequence_length):
-                    memory, y_pred_t = self((memory, x[batch, t]))
-                    current_predictions.append(y_pred_t)
-                y_pred.append(tf.stack(current_predictions))
-            y_pred = tf.stack(y_pred)
+            memory = tf.zeros((batch_size, self.memory_units,))
+            for t in range(sequence_length):
+                tokens = x[:, t]
+                memory, y_pred_t = self((memory, tokens))
+                y_pred.append(y_pred_t)
+            y_pred = tf.stack(y_pred, axis=1)
             loss = self.compiled_loss(y, y_pred)
-        gradients = tape.gradient(loss, self.trainable_variables)
+            scaled_loss = self.optimizer.get_scaled_loss(loss)
+        scaled_gradients = tape.gradient(scaled_loss, self.trainable_variables)
+        gradients = self.optimizer.get_unscaled_gradients(scaled_gradients)
         self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
-        # Reset the memory after each batch
-        self.memory.assign(tf.zeros_like(self.memory))
         return {"loss": loss}
