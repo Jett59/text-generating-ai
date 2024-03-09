@@ -46,15 +46,21 @@ def train(model):
     model.fit(dataset, epochs=1)
     model.save_weights('model_weights.ckpt')
 
+@tf.function
+def infer(model, prompt_indices):
+    return model(prompt_indices)
+
 def generate_text(model, should_print = False):
     prompt = input('Enter prompt: ')
     max_length = int(input('Number of characters to generate: '))
     temperature = float(input('Temperature: '))
     prompt_indices = [character_to_index[character] for character in "@START" + prompt]
-    model_input = tf.expand_dims(prompt_indices, 0)
     generated_text = ''
     for i in range(max_length):
-        predictions = model(model_input)
+        # To avoid retracings, we need to use the same shape tensor as the model was trained on.
+        total_prompt_indices = prompt_indices + [0] * (INPUT_SEQUENCE_LENGTH - len(prompt_indices))
+        model_input = tf.expand_dims(total_prompt_indices, 0)
+        predictions = infer(model, model_input)
         predictions = tf.squeeze(predictions, 0)
         predictions = predictions / temperature
         predicted_id = tf.random.categorical(predictions, 1)[-1, 0].numpy()
@@ -62,7 +68,6 @@ def generate_text(model, should_print = False):
         generated_text += character
         # Concattenate the predicted character to the prompt
         prompt_indices = prompt_indices[1:] + [predicted_id]
-        model_input = tf.expand_dims(prompt_indices, 0)
         if should_print:
             print(character, end='', flush=True)
     if should_print:

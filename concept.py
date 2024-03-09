@@ -19,22 +19,20 @@ class ConceptLayer(layers.Layer):
         conceptual_matrix = tf.matmul(primary_token, secondary_token, transpose_a=True)
         # The concept map is in the shape (batch_size, embedding_dimension, embedding_dimension).
         # We want it to be in the shape (batch_size, 1, embedding_dimension, embedding_dimension) so we can multiply it with the concept map, which has shape (embedding_dimension, embedding_dimension, embedding_dimension).
-        conceptual_matrix = tf.expand_dims(conceptual_matrix, axis=-1)
+        conceptual_matrix = tf.expand_dims(conceptual_matrix, axis=1)
         # We then multiply the conceptual matrix by the concept map and sum along the last two axes to get the relative meaning.
-        result = tf.reduce_sum(conceptual_matrix * self.concept_map, axis=(-2, -1))
+        result = tf.reduce_sum(conceptual_matrix * self.concept_map, axis=(2, 3))
         return result
 
     def transform_meaning(self, current_token, preceding_tokens):
         preceding_token_count = preceding_tokens.shape[1]
         if preceding_token_count > 0:
-            # It's annoying that we have to transpose this vector. The only reason is that tf.map_fn doesn't support specifying the axis, so we have to perform a massive number of memory copies instead.
             relative_meanings = tf.vectorized_map(lambda i: self.get_relative_meaning(current_token, preceding_tokens[:, i], preceding_token_count - i), tf.range(preceding_token_count))
-            # relative_meanings currently has the shape (preceding_token_count, batch_size, embedding_dimension).
-            # We want to transpose it to (batch_size, preceding_token_count, embedding_dimension).
-            relative_meanings = tf.transpose(relative_meanings, perm=(1, 0, 2))
+            # relative_meanings has the shape (preceding_token_count, batch_size, embedding_dimension).
+            # This is ok, since we are going to sum anyway so we can just sum along the first axis instead of the second one.
         else:
-            relative_meanings = tf.zeros((current_token.shape[0], 0, current_token.shape[-1]), dtype=current_token.dtype)
-        return tf.reduce_sum(relative_meanings, axis=1)
+            relative_meanings = tf.zeros((0, current_token.shape[0], current_token.shape[-1]), dtype=current_token.dtype)
+        return tf.reduce_sum(relative_meanings, axis=0)
 
     def call(self, input):
         result = []
