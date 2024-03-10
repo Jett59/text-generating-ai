@@ -6,7 +6,7 @@ from keras import mixed_precision
 # Enable mixed precision (which allows us to use tensor cores)
 mixed_precision.set_global_policy('mixed_float16')
 
-INPUT_SEQUENCE_LENGTH = 16
+INPUT_SEQUENCE_LENGTH = 128
 
 text = open('input.txt', 'rb').read().decode(encoding='utf-8')
 
