@@ -15,7 +15,7 @@ class ConceptLayer(layers.Layer):
     def calculate_summed_conceptual_matrix(self, current_token, preceding_tokens):
         preceding_token_count = preceding_tokens.shape[1]
         if preceding_token_count > 0:
-            positioned_preceding_tokens = tf.vectorized_map(lambda i: self.apply_positional_encoding(preceding_tokens[:, i], preceding_token_count - i), tf.range(preceding_token_count))
+            positioned_preceding_tokens = tf.map_fn(lambda i: self.apply_positional_encoding(preceding_tokens[:, i], preceding_token_count - i), tf.range(preceding_token_count), fn_output_signature=preceding_tokens.dtype)
             # positioned_preceding_tokens has the shape (preceding_token_count, batch_size, embedding_dimension).
             # This is ok, since we are going to sum anyway so we can just sum along the first axis instead of the second one.
         else:

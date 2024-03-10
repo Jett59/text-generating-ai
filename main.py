@@ -6,7 +6,7 @@ from keras import mixed_precision
 # Enable mixed precision (which allows us to use tensor cores)
 mixed_precision.set_global_policy('mixed_float16')
 
-INPUT_SEQUENCE_LENGTH = 128
+INPUT_SEQUENCE_LENGTH = 16
 
 text = open('input.txt', 'rb').read().decode(encoding='utf-8')
 
@@ -44,7 +44,7 @@ def loss(labels, logits):
 def train(model):
     model.compile(optimizer='adam', loss=loss, metrics=['accuracy'])
     model.fit(dataset, epochs=1)
-    model.save_weights('model_weights.ckpt')
+    model.save_weights('model.weights.h5')
 
 @tf.function
 def infer(model, prompt_indices):
@@ -80,7 +80,7 @@ while True:
         train(model)    
     elif command == 'load':
         model.compile(optimizer='adam', loss=loss, metrics=['accuracy'])
-        model.load_weights('model_weights.ckpt')
+        model.load_weights('model.weights.h5')
     elif command == 'generate':
         generate_text(model, should_print=True)
     elif command == 'summary':
