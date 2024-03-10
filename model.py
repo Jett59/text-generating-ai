@@ -5,7 +5,7 @@ from concept import ConceptLayer
 
 class TextModel(keras.Model):
     def __init__(self, embedding_dimension, layer_count, vocabulary_size, dropout_rate):
-        super().__init__(self)
+        super().__init__()
         self.embedding = layers.Embedding(vocabulary_size, embedding_dimension)
         self.concept_layers = [ConceptLayer(embedding_dimension, dropout_rate) for _ in range(layer_count)]
         self.final_layer = layers.Dense(vocabulary_size)

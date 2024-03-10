@@ -7,7 +7,7 @@ class ConceptLayer(layers.Layer):
         super().__init__()
         self.dropout = layers.Dropout(dropout_rate)
         self.normalize = layers.LayerNormalization()
-        self.concept_map = self.add_weight('concept_map', (embedding_dimension, embedding_dimension, embedding_dimension), trainable=True)
+        self.concept_map = self.add_weight(name='concept_map', shape=(embedding_dimension, embedding_dimension, embedding_dimension), trainable=True)
 
     def apply_positional_encoding(self, token, distance):
         return token / tf.cast(1 / distance ** 2, token.dtype)
