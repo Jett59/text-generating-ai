@@ -39,7 +39,7 @@ def build_model():
 model = build_model()
 
 def loss(labels, logits):
-  return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
+  return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=False)
 
 def train(model):
     model.compile(optimizer='adam', loss=loss, metrics=['accuracy'])
