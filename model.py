@@ -8,7 +8,7 @@ class TextModel(keras.Model):
         super().__init__()
         self.embedding = layers.Embedding(vocabulary_size, embedding_dimension)
         self.concept_layers = [ConceptLayer(embedding_dimension, dropout_rate) for _ in range(layer_count)]
-        self.final_layer = layers.Dense(vocabulary_size)
+        self.final_layer = layers.Dense(vocabulary_size, activation='softmax')
 
     def call(self, inputs):
         embeddings = self.embedding(inputs)
