@@ -61,9 +61,11 @@ def generate_text(model, should_print = False):
         total_prompt_indices = prompt_indices + [0] * (INPUT_SEQUENCE_LENGTH - len(prompt_indices))
         model_input = tf.expand_dims(total_prompt_indices, 0)
         predictions = infer(model, model_input)
-        predictions = tf.squeeze(predictions, 0)[len(prompt_indices) - 1]
+        predictions = tf.squeeze(predictions, 0)
         predictions = predictions / temperature
-        predicted_id = tf.random.categorical(predictions, 1)[-1, 0].numpy()
+        print(predictions.shape)
+        predicted_id = tf.random.categorical(predictions, 1)
+        predicted_id = predicted_id[len(prompt_indices) - 1, 0].numpy()
         character = index_to_character[predicted_id]
         generated_text += character
         # Concattenate the predicted character to the prompt
