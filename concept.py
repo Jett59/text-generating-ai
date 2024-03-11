@@ -10,11 +10,7 @@ class ConceptLayer(layers.Layer):
         self.concept_map = self.add_weight(name='concept_map', shape=(embedding_dimension, embedding_dimension, embedding_dimension), trainable=True)
 
 
-    def calculate_summed_conceptual_matrix(self, current_token, positional_preceding_tokens):
-        preceding_token_count = positional_preceding_tokens.shape[1]
-        if preceding_token_count == 0:
-            return tf.zeros((current_token.shape[0], current_token.shape[1], current_token.shape[1]))
-        summed_positional_preceding_tokens = tf.reduce_sum(positional_preceding_tokens, axis=1)
+    def calculate_summed_conceptual_matrix(self, current_token, summed_positional_preceding_tokens):
         # We need to add axes between batch and embedding_dimension, otherwise the matrix multiplication will go across the batch.
         current_token = tf.expand_dims(current_token, axis=1)
         summed_positional_preceding_tokens = tf.expand_dims(summed_positional_preceding_tokens, axis=1)
@@ -23,14 +19,14 @@ class ConceptLayer(layers.Layer):
 
     def call(self, input):
         conceptual_matrices = []
-        positional_preceding_tokens = tf.zeros((input.shape[0], 0, input.shape[-1]), dtype=input.dtype)
+        summed_positional_preceding_tokens = tf.zeros((input.shape[0], input.shape[-1]), dtype=input.dtype)
         # The first matrix is unique in that there are no preceding tokens, which means that it is always equal to 0.
         conceptual_matrices.append(tf.zeros((input.shape[0], input.shape[-1], input.shape[-1]), dtype=input.dtype))
         for i in range(1, input.shape[-2]):
-            positional_preceding_tokens = tf.concat([positional_preceding_tokens, input[:, i-1:i]], axis=1)
-            positional_preceding_tokens /= 1.2 # This makes the positional factor equal to 1/1.2^d, where d is the distance.
+            summed_positional_preceding_tokens += input[:, i-1]
+            summed_positional_preceding_tokens /= 1.2 # This makes the positional factor equal to 1/1.2^d, where d is the distance.
             # This is because the token placed in the list first will be divided over and over again in this loop, giving the geometric pattern of 1/1.2^d.
-            conceptual_matrices.append(self.calculate_summed_conceptual_matrix(input[:, i], positional_preceding_tokens))
+            conceptual_matrices.append(self.calculate_summed_conceptual_matrix(input[:, i], summed_positional_preceding_tokens))
         conceptual_matrices = tf.stack(conceptual_matrices, axis=1)
         # concept_matrices is in the shape (batch_size, sequence_length, embedding_dimension, embedding_dimension).
         # We want it to be in the shape (batch_size, sequence_length, 1, embedding_dimension, embedding_dimension) so we can multiply it with the concept map, which has shape (embedding_dimension, embedding_dimension, embedding_dimension).
