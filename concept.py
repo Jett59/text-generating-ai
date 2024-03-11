@@ -14,13 +14,14 @@ class ConceptLayer(layers.Layer):
 
     def calculate_summed_conceptual_matrix(self, current_token, preceding_tokens):
         preceding_token_count = preceding_tokens.shape[1]
-        summed_positional_preceding_tokens = tf.zeros((current_token.shape[0], current_token.shape[1]), dtype=current_token.dtype)
-        for i in range(preceding_token_count):
-            summed_positional_preceding_tokens += self.apply_positional_encoding(preceding_tokens[:, i], preceding_token_count - i)
-        # We need to add axes between batch and embedding_dimension, otherwise the matrix multiplication will go across the batch.
-        current_token = tf.expand_dims(current_token, axis=1)
+        if preceding_token_count != 0:
+            summed_positional_preceding_tokens = tf.scan(lambda a, i: a + self.apply_positional_encoding(preceding_tokens[:, i], preceding_token_count - i), tf.range(preceding_token_count), initializer=tf.zeros_like(current_token))[-1]
+        else:
+            summed_positional_preceding_tokens = tf.zeros_like(current_token)
+        # We need to add axes to make them both matrices, with one being a columnrow vector (1, embedding_dimension) and the other a column vector (embedding_dimension, 1).
+        current_token = tf.expand_dims(current_token, axis=2)
         summed_positional_preceding_tokens = tf.expand_dims(summed_positional_preceding_tokens, axis=1)
-        summed_conceptual_matrix = tf.matmul(current_token, summed_positional_preceding_tokens, transpose_a=True)
+        summed_conceptual_matrix = tf.matmul(current_token, summed_positional_preceding_tokens)
         return summed_conceptual_matrix
 
     def call(self, input):
