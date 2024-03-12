@@ -26,12 +26,10 @@ class ConceptLayer(layers.Layer):
         input = tf.reshape(input, (input.shape[0], input.shape[1], self.head_count, -1))
         conceptual_matrices = []
         summed_positional_preceding_tokens = tf.zeros((input.shape[0], input.shape[-2], input.shape[-1]), dtype=input.dtype)
-        # The first matrix is unique in that there are no preceding tokens, which means that it is always equal to 0.
-        conceptual_matrices.append(tf.zeros((input.shape[0], input.shape[-2], input.shape[-1], input.shape[-1]), dtype=input.dtype))
-        for i in range(1, input.shape[1]):
-            summed_positional_preceding_tokens += input[:, i-1]
+        for i in range(input.shape[1]):
             summed_positional_preceding_tokens /= 1.2 # This makes the positional factor equal to 1/1.2^d, where d is the distance.
             # This is because the token placed in the list first will be divided over and over again in this loop, giving the geometric pattern of 1/1.2^d.
+            summed_positional_preceding_tokens += input[:, i]
             conceptual_matrices.append(self.calculate_summed_conceptual_matrix(input[:, i], summed_positional_preceding_tokens))
         conceptual_matrices = tf.stack(conceptual_matrices, axis=1)
         # conceptual_matrices is in the shape (batch_size, sequence_length, head_count, embedding_dimension, embedding_dimension).
@@ -40,7 +38,6 @@ class ConceptLayer(layers.Layer):
         result = conceptual_matrices * self.concept_map
         # Now we have to sum along the last two axes to get it back into the shape (batch_size, sequence_length, embedding_dimension).
         result = tf.reduce_sum(result, axis=[-2, -1])
-        result += input
         # Then we have to reshape to remove the head_count dimension.
         result = tf.reshape(result, (result.shape[0], result.shape[1], -1))
         result = self.normalize(result)
