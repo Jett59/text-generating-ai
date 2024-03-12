@@ -5,6 +5,7 @@ from keras import layers
 class ConceptLayer(layers.Layer):
     def __init__(self, embedding_dimension, dropout_rate):
         super().__init__()
+        self.dense = layers.Dense(embedding_dimension)
         self.dropout = layers.Dropout(dropout_rate)
         self.normalize = layers.LayerNormalization()
         self.concept_map = self.add_weight(name='concept_map', shape=(embedding_dimension, embedding_dimension, embedding_dimension), trainable=True)
@@ -18,6 +19,7 @@ class ConceptLayer(layers.Layer):
         return summed_conceptual_matrix
 
     def call(self, input):
+        input = self.dense(input)
         conceptual_matrices = []
         summed_positional_preceding_tokens = tf.zeros((input.shape[0], input.shape[-1]), dtype=input.dtype)
         # The first matrix is unique in that there are no preceding tokens, which means that it is always equal to 0.
