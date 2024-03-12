@@ -1,6 +1,12 @@
 import tensorflow as tf
 from tensorflow import keras
 from keras import layers
+import math
+
+def concept_matrix_activation(x, base):
+    pi = tf.cast(math.pi, x.dtype)
+    base = tf.cast(base, x.dtype)
+    return tf.sin(pi*tf.math.log(tf.abs(x+1)+1e-4)/tf.math.log(base))**2
 
 class ConceptLayer(layers.Layer):
     def __init__(self, embedding_dimension, dropout_rate):
@@ -34,6 +40,7 @@ class ConceptLayer(layers.Layer):
         # We want it to be in the shape (batch_size, sequence_length, 1, embedding_dimension, embedding_dimension) so we can multiply it with the concept map, which has shape (embedding_dimension, embedding_dimension, embedding_dimension).
         conceptual_matrices = tf.expand_dims(conceptual_matrices, axis=2)
         result = conceptual_matrices * self.concept_map
+        result = concept_matrix_activation(result, 1.2)
         # Now we have to sum along the last two axes to get it back into the shape (batch_size, sequence_length, embedding_dimension).
         result = tf.reduce_sum(result, axis=[-2, -1])
         # Add and normalize, then we're done.
