@@ -38,10 +38,8 @@ class ConceptLayer(layers.Layer):
         # We want it to be in the shape (batch_size, sequence_length, head_count, 1, embedding_dimension, embedding_dimension) so we can multiply it with the concept map, which is of rank 3.
         conceptual_matrices = tf.expand_dims(conceptual_matrices, axis=-3)
         result = conceptual_matrices * self.concept_map
-        print(self.concept_map.shape, result.shape)
         # Now we have to sum along the last two axes to get it back into the shape (batch_size, sequence_length, embedding_dimension).
         result = tf.reduce_sum(result, axis=[-2, -1])
-        print(result.shape, input.shape)
         result += input
         # Then we have to reshape to remove the head_count dimension.
         result = tf.reshape(result, (result.shape[0], result.shape[1], -1))
