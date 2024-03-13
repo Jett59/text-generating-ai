@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow import keras
 import numpy as np
 import model
 from keras import mixed_precision
@@ -34,7 +35,7 @@ BUFFER_SIZE = 10000
 dataset = dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True)
 
 def build_model():
-    return model.TextModel(16, 1, 4, len(vocabulary), 0.1)
+    return model.TextModel(16, 1, len(vocabulary), 0.1)
 
 model = build_model()
 
@@ -42,7 +43,7 @@ def loss(labels, logits):
   return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=False)
 
 def train(model):
-    model.compile(optimizer='adam', loss=loss, metrics=['accuracy'])
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=1e-50, clipvalue=0.5), loss=loss, metrics=['accuracy'])
     model.fit(dataset, epochs=1)
     model.save_weights('model.weights.h5')
 
