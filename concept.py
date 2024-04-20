@@ -5,10 +5,9 @@ from keras import layers
 class ConceptLayer(layers.Layer):
     def __init__(self, embedding_dimension, dropout_rate):
         super().__init__()
-        self.dense = layers.Dense(embedding_dimension)
         self.dropout = layers.Dropout(dropout_rate)
         self.normalize = layers.LayerNormalization()
-        self.concept_map = self.add_weight(name='concept_map', shape=(embedding_dimension, embedding_dimension, embedding_dimension), trainable=True)
+        self.concept_map = self.add_weight(name='concept_map', shape=(embedding_dimension, embedding_dimension), trainable=True)
 
 
     def calculate_summed_conceptual_matrix(self, current_token, summed_positional_preceding_tokens):
@@ -35,12 +34,10 @@ class ConceptLayer(layers.Layer):
             conceptual_matrices.append(self.calculate_summed_conceptual_matrix(input[:, i], summed_positional_preceding_tokens))
         conceptual_matrices = tf.stack(conceptual_matrices, axis=1)
         # concept_matrices is in the shape (batch_size, sequence_length, embedding_dimension, embedding_dimension).
-        # We want it to be in the shape (batch_size, sequence_length, 1, embedding_dimension, embedding_dimension) so we can multiply it with the concept map, which has shape (embedding_dimension, embedding_dimension, embedding_dimension).
-        conceptual_matrices = tf.expand_dims(conceptual_matrices, axis=2)
         result = conceptual_matrices * self.concept_map
-        # Now we have to sum along the last two axes to get it back into the shape (batch_size, sequence_length, embedding_dimension).
-        result = tf.reduce_sum(result, axis=[-2, -1])
+        # Now we have to sum along the last axis to get it back into the shape (batch_size, sequence_length, embedding_dimension).
+        result = tf.reduce_sum(result, axis=-1)
         # Add and normalize, then we're done.
         result += input
         result = self.normalize(result)
-        return self.dropout(self.dense(result))
+        return self.dropout(result)

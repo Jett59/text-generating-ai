@@ -34,7 +34,7 @@ BUFFER_SIZE = 10000
 dataset = dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True)
 
 def build_model():
-    return model.TextModel(32, 12, len(vocabulary), 0.1)
+    return model.TextModel(96, 6, len(vocabulary), 0.1)
 
 model = build_model()
 
