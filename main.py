@@ -54,7 +54,7 @@ def generate_text(model, should_print = False):
     prompt = input('Enter prompt: ')
     max_length = int(input('Number of characters to generate: '))
     temperature = float(input('Temperature: '))
-    prompt_indices = [character_to_index[character] for character in "@START" + prompt]
+    prompt_indices = [character_to_index[character] for character in prompt]
     generated_text = ''
     for i in range(max_length):
         # To avoid retracings, we need to use the same shape tensor as the model was trained on.
