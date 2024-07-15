@@ -10,33 +10,19 @@ class ConceptLayer(layers.Layer):
         self.concept_map = self.add_weight(name='concept_map', shape=(embedding_dimension, embedding_dimension), trainable=True)
 
 
-    def calculate_summed_conceptual_matrix(self, current_token, summed_positional_preceding_tokens):
-        # We need to add axes between batch and embedding_dimension, otherwise the matrix multiplication will go across the batch.
-        current_token = tf.expand_dims(current_token, axis=1)
-        summed_positional_preceding_tokens = tf.expand_dims(summed_positional_preceding_tokens, axis=1)
-        summed_conceptual_matrix = tf.matmul(current_token, summed_positional_preceding_tokens, transpose_a=True)
-        return summed_conceptual_matrix
-
     def call(self, input):
-        conceptual_matrices = []
-        # The first matrix is unique in that there are no preceding tokens, which means that it is always equal to 0.
-        conceptual_matrices.append(tf.zeros((input.shape[0], input.shape[-1], input.shape[-1]), dtype=input.dtype))
-        for i in range(1, input.shape[-2]):
-            # Each token is multiplied by 1/the distance to the current token.
+        positional_masks = []
+        for i in range(input.shape[1]):
             positional_factors = []
+            # Each token is multiplied by 1/the distance to the current token.
             for j in range(i):
                 positional_factors.append(1 / (i - j))
+            for j in range(i, input.shape[1]):
+                positional_factors.append(0)
             positional_factors = tf.convert_to_tensor(positional_factors, dtype=input.dtype)
-            positional_factors = tf.expand_dims(positional_factors, axis=-1)
-            preceding_tokens = input[:, :i]
-            positionally_encoded_preceding_tokens = preceding_tokens * positional_factors
-            summed_positional_preceding_tokens = tf.reduce_sum(positionally_encoded_preceding_tokens, axis=1)
-            conceptual_matrices.append(self.calculate_summed_conceptual_matrix(input[:, i], summed_positional_preceding_tokens))
-        conceptual_matrices = tf.stack(conceptual_matrices, axis=1)
-        # concept_matrices is in the shape (batch_size, sequence_length, embedding_dimension, embedding_dimension).
-        result = conceptual_matrices * self.concept_map
-        # Now we have to sum along the last axis to get it back into the shape (batch_size, sequence_length, embedding_dimension).
-        result = tf.reduce_sum(result, axis=-1)
+            positional_masks.append(positional_factors)
+        positional_masks = tf.stack(positional_masks, axis=0)
+        result = tf.einsum('bki,blj,ij,kl->bki', input, input, self.concept_map, positional_masks)
         # Add and normalize, then we're done.
         result += input
         result = self.normalize(result)
