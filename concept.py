@@ -2,12 +2,28 @@ import tensorflow as tf
 from tensorflow import keras
 from keras import layers
 
+class FeedForwardLayer(layers.Layer):
+    def __init__(self, embedding_dimension, dropout_rate):
+        super().__init__()
+        self.dropout = layers.Dropout(dropout_rate)
+        self.normalize = layers.LayerNormalization()
+        self.dense1 = layers.Dense(embedding_dimension, activation='relu')
+        self.dense2 = layers.Dense(embedding_dimension)
+
+    def call(self, input):
+        result = self.dense1(input)
+        result = self.dense2(result)
+        result += input
+        result = self.normalize(result)
+        return self.dropout(result)
+
 class ConceptLayer(layers.Layer):
     def __init__(self, embedding_dimension, dropout_rate):
         super().__init__()
         self.dropout = layers.Dropout(dropout_rate)
         self.normalize = layers.LayerNormalization()
         self.concept_map = self.add_weight(name='concept_map', shape=(embedding_dimension, embedding_dimension), trainable=True)
+        self.feed_forward = FeedForwardLayer(embedding_dimension, dropout_rate)
 
 
     def call(self, input):
@@ -26,4 +42,4 @@ class ConceptLayer(layers.Layer):
         # Add and normalize, then we're done.
         result += input
         result = self.normalize(result)
-        return self.dropout(result)
+        return self.feed_forward(self.dropout(result))
